@@ -1,7 +1,8 @@
 import { PrismaClient } from "@prisma/client/edge";
 import { withAccelerate } from "@prisma/extension-accelerate";
+import { signinInput, signupInput } from "@sahil873/medium-common";
 import { Hono } from "hono";
-import { sign, verify } from "hono/jwt";
+import { sign } from "hono/jwt";
 
 const app = new Hono<{
   Bindings: {
@@ -17,9 +18,18 @@ app.post("/signup", async (c) => {
 
   const body = await c.req.json();
 
+  const res = signupInput.safeParse(body);
+  if (!res.success) {
+    const errors = res.error.format();
+    // const emailError = errors.email?._errors[0];
+    // const passwordError = errors.password?._errors[0];
+    // const nameError = errors.name?._errors[0];
+    return c.json({ error: errors }, 403);
+  }
+
   const dbUser = await prisma.user.findUnique({
     where: {
-      email: body.email,
+      email: res.data.email,
     },
   });
 
@@ -29,9 +39,9 @@ app.post("/signup", async (c) => {
 
   const user = await prisma.user.create({
     data: {
-      email: body.email,
-      password: body.password,
-      name: body.name,
+      email: res.data.email,
+      password: res.data.password,
+      name: res.data.name,
     },
   });
 
@@ -45,10 +55,15 @@ app.post("/signin", async (c) => {
   }).$extends(withAccelerate());
 
   const body = await c.req.json();
+  const res = signinInput.safeParse(body);
+  if (!res.success) {
+    return c.json({ error: res.error.errors }, 403);
+  }
+
   const user = await prisma.user.findFirst({
     where: {
-      email: body.email,
-      password: body.password,
+      email: res.data.email,
+      password: res.data.password,
     },
   });
 

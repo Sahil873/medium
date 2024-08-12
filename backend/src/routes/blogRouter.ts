@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client/edge";
 import { withAccelerate } from "@prisma/extension-accelerate";
+import { blogInput } from "@sahil873/medium-common";
 import { Hono } from "hono";
 import { jwt, JwtVariables } from "hono/jwt";
 
@@ -24,12 +25,17 @@ app.post("/", async (c) => {
     datasourceUrl: c.env.DATABASE_URL,
   }).$extends(withAccelerate());
   const body = await c.req.json();
+  const res = blogInput.safeParse(body);
+
+  if (!res.success) {
+    return c.json({ error: "Invalid Inputs" }, 403);
+  }
 
   try {
     const blog = await prisma.post.create({
       data: {
-        title: body.title,
-        content: body.content,
+        title: res.data.title,
+        content: res.data.content,
         authorId: c.get("jwtPayload").id, // from middleware
       },
     });
@@ -44,15 +50,24 @@ app.put("/:id", async (c) => {
     datasourceUrl: c.env.DATABASE_URL,
   }).$extends(withAccelerate());
   const body = await c.req.json();
+  const res = blogInput.safeParse(body);
+
+  if (!res.success) {
+    return c.json({ error: "Invalid Inputs" }, 403);
+  }
 
   const id = c.req.param("id");
 
-  const blog = prisma.post.update({
-    where: { id },
-    data: { title: body.title, content: body.content },
-  });
+  try {
+    const blog = prisma.post.update({
+      where: { id },
+      data: { title: res.data.title, content: res.data.content },
+    });
 
-  return c.json({ msg: "Blog updated successfully" });
+    return c.json({ msg: "Blog updated successfully" });
+  } catch (e) {
+    return c.json({ error: "Unable to update post" }, 500);
+  }
 });
 
 // todo pagination
