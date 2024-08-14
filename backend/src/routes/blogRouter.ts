@@ -77,7 +77,18 @@ app.get("/bulk", async (c) => {
   }).$extends(withAccelerate());
 
   try {
-    const blogs = await prisma.post.findMany();
+    const blogs = await prisma.post.findMany({
+      select: {
+        title: true,
+        content: true,
+        id: true,
+        author: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
     return c.json({ blogs });
   } catch (e) {
     return c.json({ error: "Failed to fetch blogs" }, 500);
@@ -93,6 +104,16 @@ app.get("/:id", async (c) => {
     const id = c.req.param("id");
     const blog = await prisma.post.findFirst({
       where: { id },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        author: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
     return c.json({ blog });
   } catch (e) {
